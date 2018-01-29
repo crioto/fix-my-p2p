@@ -1,6 +1,4 @@
-#!/bin/bash
-
-if [ $EUID -ne 0 ]; then
+if [ "$EUID" != "0" ]; then
     echo "You were instructed to run me as root, no?"
     exit 15
 fi
