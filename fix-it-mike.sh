@@ -1,8 +1,3 @@
-if [ "$EUID" != "0" ]; then
-    echo "You were instructed to run me as root, no? [$EUID]"
-    exit 15
-fi
-
 clear
 
 if which tput >/dev/null 2>&1; then
@@ -68,6 +63,8 @@ This script will collect information about Subutai P2P from your peer/host, pack
 it and tell you how to get it. This process can take some time. This script is 
 intend to be run on peer or on your host. Currently only Linux is fully
 supported.
+
+${BOLD}Highly recommended to run this script as root!${NORMAL}
 
 Mike.
 
