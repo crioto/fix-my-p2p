@@ -1,5 +1,5 @@
 if [ "$EUID" != "0" ]; then
-    echo "You were instructed to run me as root, no?"
+    echo "You were instructed to run me as root, no? [$EUID]"
     exit 15
 fi
 
