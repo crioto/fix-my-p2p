@@ -138,8 +138,6 @@ it and tell you how to get it. This process can take some time. This script is
 intend to be run on peer or on your host. Currently only Linux is fully
 supported.
 
-${BOLD}Highly recommended to run this script as root!${NORMAL}
-
 Mike.
 
 BANNER
@@ -228,7 +226,7 @@ fi
 rm -rf $output
 
 echo -e "\n${YELLOW}${BOLD}Finished!${NORMAL}\n"
-echo "We have created a file here: ${GREEN}${BOLD}/tmp/$name${NORMAL}"
+echo "We have created a file here: ${GREEN}${BOLD}/tmp/$name${NORMAL}.tar.gz"
 echo "You need to move it to your computer and send it to mike"
 echo "For example, you can try to execute \`scp\` command on your host:"
 echo -e "\t${BOLD}scp <USER>@<HOST>:/tmp/$name.tar.gz ~${NORMAL}"
