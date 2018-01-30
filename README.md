@@ -3,7 +3,7 @@ A simple script that will collect information from your system. Useful in p2p de
 
 SSH to your peer and run 
 ```
-sh -c "$(curl -fsSL https://raw.github.com/crioto/fix-my-p2p/master/fix-it-mike.sh)"
+bash -c "$(curl -fsSL https://raw.github.com/crioto/fix-my-p2p/master/fix-it-mike.sh)"
 ```
 
 Or download it with wget and execute manually:
