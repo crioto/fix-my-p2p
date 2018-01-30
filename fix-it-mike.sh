@@ -45,6 +45,78 @@ show_done()
     echo -e "\r\t\t\t\t\t\t\t\t\t${GREEN}${BOLD}[DONE]${NORMAL}"
 }
 
+check_p2p_path()
+{
+if [ "$p2p_path" != "" ]; then
+    echo -ne "Checking if provided path is correct"
+    $p2p_path -v > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        show_fail
+        p2p_path=""
+        echo "We will try to find p2p automatically"
+    else
+        show_ok
+    fi
+fi
+}
+
+find_p2p_command() 
+{
+read -r -d '' binary_locations << EOM
+p2p
+subutai.p2p
+subutai-master.p2p
+subutai-dev.p2p
+/opt/subutai/bin/p2p
+EOM
+
+if [ "$p2p_path" == "" ]; then
+    echo -ne "Determining p2p command"
+    while read -r line; do
+        $line -v > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            p2p_path=$line
+            break
+        fi
+    done <<< "$binary_locations"
+
+    if [ "$p2p_path" == "" ]; then
+        show_fail
+        echo -e "\n${YELLOW}${BOLD}You can specify path to p2p as a parameter to this script${NORMAL}\n"
+        unrecoverable
+    else
+        show_ok
+    fi
+fi
+}
+
+detect_service_name()
+{
+echo -ne "Determining service name"
+read -r -d '' service_units << EOM
+snap.subutai.p2p-service.service
+snap.subutai-dev.p2p-service.service
+snap.subutai-master.p2p-service.service
+p2p.service
+EOM
+
+while read -r line; do
+    systemctl is-enabled $line > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        unit_name=$line
+        break
+    fi
+done <<< "$service_units"
+
+if [ "$unit_name" == "" ]; then
+    show_fail
+    echo -ne "Skipping logs"
+    show_ok
+else
+    show_ok
+fi
+}
+
 echo -e "${BLUE} "
 cat <<BANNER
 ===============================================================================
@@ -76,8 +148,16 @@ echo -e "${NORMAL} "
 date=`date +%Y-%m-%d-%H_%M_%S`
 name="fix-it-mike-$date"
 output="/tmp/$name"
-echo -ne "Creating directory ${BOLD}$output${NORMAL}"
+unit_name=""
+p2p_path="$1"
 
+$(sudo ls /) >/dev/null 2>&1
+
+check_p2p_path
+find_p2p_command
+detect_service_name
+
+echo -ne "Creating directory ${BOLD}$output${NORMAL}"
 mkdir -p $output > /dev/null 2>&1
 if [ $? != 0 ]; then 
     show_fail
@@ -86,34 +166,20 @@ else
     show_ok
 fi
 
-echo -ne "Executing ${BOLD}journalctl${NORMAL} and collecting logs"
-journalctl > $output/p2p.log 2>&1
+if [ "$unit_name" != "" ]; then
+    echo -ne "Executing ${BOLD}journalctl${NORMAL} and collecting logs"
+    sudo journalctl -u $unit_name > $output/p2p.log 2>&1
 
-if [ $? != 0 ]; then
-    show_fail
-else
-    show_ok
-fi
-
-echo -ne "Determining p2p path"
-p2p_path=`which p2p`
-if [ $? -ne 0 ]; then
-    p2p_path=`which subutai.p2p`
-    if [ $? -ne 0 ]; then
-        p2p_path=`which subutai-master.p2p`
-        if [ $? -ne 0 ]; then
-            p2p_path=`which subutai-dev.p2p`
-            if [ $? -ne 0 ]; then
-                show_fail
-                unrecoverable
-            fi
-        fi
+    if [ $? != 0 ]; then
+        show_fail
+    else
+        show_ok
     fi
 fi
-show_ok
+
 
 echo -ne "Execute ${BOLD}p2p debug${NORMAL}"
-p2p_debug=$(p2p debug)
+p2p_debug=$($p2p_path debug)
 
 if [ $? != 0 ]; then
     show_fail
@@ -128,7 +194,7 @@ do
    clear_line=`echo "$line" | tr -d '\t'`
    if [ "${clear_line:0:3}" == "IP:" ]; then
     ip=${clear_line:3}
-    echo "Sending ping to $ip"
+    echo -ne "Sending ping to $ip"
     ping $ip -c 10 > $output/ping-$ip-out 2>&1
     show_done
    fi
