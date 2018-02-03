@@ -68,6 +68,7 @@ p2p
 subutai.p2p
 subutai-master.p2p
 subutai-dev.p2p
+subutai-sysnet.p2p
 /opt/subutai/bin/p2p
 EOM
 
@@ -98,6 +99,7 @@ read -r -d '' service_units << EOM
 snap.subutai.p2p-service.service
 snap.subutai-dev.p2p-service.service
 snap.subutai-master.p2p-service.service
+snap.subutai-sysnet.p2p-service.service
 p2p.service
 EOM
 
@@ -208,7 +210,7 @@ else
 fi
 
 echo -ne "Collecting p2p status"
-p2p status > $output/status.out 2>&1 
+$p2p_path status > $output/status.out 2>&1 
 if [ $? != 0 ]; then
     show_fail
 else
