@@ -2,6 +2,7 @@
 
 clear
 
+os=`uname -s`
 if which tput >/dev/null 2>&1; then
       ncolors=$(tput colors)
 fi
@@ -70,6 +71,7 @@ subutai-master.p2p
 subutai-dev.p2p
 subutai-sysnet.p2p
 /opt/subutai/bin/p2p
+/usr/local/bin/p2p
 EOM
 
 if [ "$p2p_path" == "" ]; then
@@ -94,7 +96,6 @@ fi
 
 detect_service_name()
 {
-echo -ne "Determining service name"
 read -r -d '' service_units << EOM
 snap.subutai.p2p-service.service
 snap.subutai-dev.p2p-service.service
@@ -102,21 +103,23 @@ snap.subutai-master.p2p-service.service
 snap.subutai-sysnet.p2p-service.service
 p2p.service
 EOM
+if [ "$os" == "Linux" ]; then
+    echo -ne "Determining service name"
+    while read -r line; do
+        systemctl is-enabled $line > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            unit_name=$line
+            break
+        fi
+    done <<< "$service_units"
 
-while read -r line; do
-    systemctl is-enabled $line > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        unit_name=$line
-        break
+    if [ "$unit_name" == "" ]; then
+        show_fail
+        echo -ne "Skipping logs"
+        show_ok
+    else
+        show_ok
     fi
-done <<< "$service_units"
-
-if [ "$unit_name" == "" ]; then
-    show_fail
-    echo -ne "Skipping logs"
-    show_ok
-else
-    show_ok
 fi
 }
 
@@ -137,8 +140,7 @@ Fix-It, Mike! Version 1.0
 
 This script will collect information about Subutai P2P from your peer/host, pack
 it and tell you how to get it. This process can take some time. This script is 
-intend to be run on peer or on your host. Currently only Linux is fully
-supported.
+intend to be run on peer or on your host. 
 
 Mike.
 
@@ -147,7 +149,7 @@ BANNER
 echo -e "${NORMAL} "
 
 date=`date +%Y-%m-%d-%H_%M_%S`
-name="fix-it-mike-$date"
+name="p2p-$os-$date"
 output="/tmp/$name"
 unit_name=""
 p2p_path="$1"
@@ -168,8 +170,13 @@ else
 fi
 
 if [ "$unit_name" != "" ]; then
-    echo -ne "Executing ${BOLD}journalctl${NORMAL} and collecting logs"
-    sudo journalctl -u $unit_name > $output/p2p.log 2>&1
+    if [ "$os" == "Linux" ]; then
+        echo -ne "Executing ${BOLD}journalctl${NORMAL} and collecting logs"
+        sudo journalctl -u $unit_name > $output/p2p.log 2>&1
+    else
+        echo -ne "Executing ${BOLD}cat /var/log/p2p.log${BOLD} to collect logs"
+        cat /var/log/p2p.log > $output/p2p.log 2>&1
+    fi
 
     if [ $? != 0 ]; then
         show_fail
@@ -179,7 +186,7 @@ if [ "$unit_name" != "" ]; then
 fi
 
 
-echo -ne "Execute ${BOLD}p2p debug${NORMAL}"
+echo -ne "Executing ${BOLD}p2p debug${NORMAL}"
 p2p_debug=$($p2p_path debug)
 
 if [ $? != 0 ]; then
@@ -202,7 +209,11 @@ do
 done
 
 echo -ne "Collecting network information"
-( ip addr > $output/ifconfig.out 2>&1 )
+if [ "$os" == "Linux" ]; then
+    ( ip addr > $output/ifconfig.out 2>&1 )
+else
+    ( ifconfig > $output>ifconfig.out 2>&1 )
+fi
 if [ $? != 0 ]; then
     show_fail
 else
@@ -210,7 +221,7 @@ else
 fi
 
 echo -ne "Collecting p2p status"
-$p2p_path status > $output/status.out 2>&1 
+$p2p_path status > $output/p2p_status.out 2>&1 
 if [ $? != 0 ]; then
     show_fail
 else
@@ -218,7 +229,8 @@ else
 fi
 
 echo -ne "Packaging into /tmp/$name.tar.gz"
-tar zcvf /tmp/$name.tar.gz $output/* > /dev/null 2>&1
+cd /tmp
+tar zcvf $name.tar.gz $output/* > /dev/null 2>&1
 if [ $? != 0 ]; then
     show_fail
 else
@@ -229,11 +241,13 @@ rm -rf $output
 
 echo -e "\n${YELLOW}${BOLD}Finished!${NORMAL}\n"
 echo "We have created a file here: ${GREEN}${BOLD}/tmp/$name${NORMAL}.tar.gz"
-echo "You need to move it to your computer and send it to mike"
-echo "For example, you can try to execute \`scp\` command on your host:"
-echo -e "\t${BOLD}scp <USER>@<HOST>:/tmp/$name.tar.gz ~${NORMAL}"
-echo "Replace <USER> with username on this computer"
-echo "Replace <HOST> with IP address of this computer"
-echo "If you did everything right you will see a file named"
-echo "${YELLOW}$name.tar.gz${NORMAL} in your home directory!"
+if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ]; then
+    echo "You need to move it to your computer and send it to mike"
+    echo "For example, you can try to execute \`scp\` command on your host:"
+    echo -e "\t${BOLD}scp <USER>@<HOST>:/tmp/$name.tar.gz ~${NORMAL}"
+    echo "Replace <USER> with username on this computer"
+    echo "Replace <HOST> with IP address of this computer"
+    echo "If you did everything right you will see a file named"
+    echo "${YELLOW}$name.tar.gz${NORMAL} in your home directory!"
+fi
 echo -e "\n${BOLD}~ Good Bye ~${NORMAL}\n"
