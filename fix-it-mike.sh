@@ -212,7 +212,7 @@ echo -ne "Collecting network information"
 if [ "$os" == "Linux" ]; then
     ( ip addr > $output/ifconfig.out 2>&1 )
 else
-    ( ifconfig > $output>ifconfig.out 2>&1 )
+    ( ifconfig > $output/ifconfig.out 2>&1 )
 fi
 if [ $? != 0 ]; then
     show_fail
